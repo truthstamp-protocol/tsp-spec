@@ -1,0 +1,168 @@
+# Self-Hosting TruthStamp
+
+TruthStamp is fully open source. You can run your own instance with your 
+own contract, database, and frontend.
+
+## What You Need
+
+| Component        | Technology          | Cost              |
+|------------------|---------------------|-------------------|
+| Smart contract   | MegaETH (EVM)       | Gas fees only     |
+| Database + Auth  | Supabase            | Free tier works   |
+| Edge Functions   | Supabase            | Free tier works   |
+| Frontend         | GitHub Pages        | Free              |
+| Arweave storage  | Turbo / Bundlr      | Pay per upload    |
+| Bitcoin archive  | Bitcoin RPC         | Optional          |
+
+---
+
+## Step 1 — Deploy the Smart Contract
+
+Clone the contracts repo:
+```bash
+git clone https://github.com/truthstamp-protocol/truthstamp-contracts
+```
+
+Compile with `viaIR` and optimizer enabled (required — contract is too 
+complex for standard compilation):
+
+**Remix IDE:**
+1. Open `Truthstamp.sol` in Remix
+2. Compiler tab → Advanced → enable **Optimization** (runs: 200)
+3. Enable **viaIR**
+4. Deploy to your target network
+
+**Hardhat:**
+```js
+solidity: {
+  version: "0.8.24",
+  settings: {
+    optimizer: { enabled: true, runs: 200 },
+    viaIR: true
+  }
+}
+```
+
+After deployment, note your contract address. The deployer wallet is 
+automatically set as owner and authorized stamper.
+
+---
+
+## Step 2 — Set Up Supabase
+
+1. Create a new project at [supabase.com](https://supabase.com)
+2. Run the database schema from `truthstamp-web/sql/schema.sql`
+3. Enable Row Level Security on all tables
+4. Note your `SUPABASE_URL` and `SUPABASE_ANON_KEY`
+
+---
+
+## Step 3 — Configure Edge Functions
+
+Clone the web repo and deploy Edge Functions to your Supabase project:
+
+```bash
+git clone https://github.com/truthstamp-protocol/truthstamp-web
+cd truthstamp-web
+supabase link --project-ref YOUR_PROJECT_REF
+supabase functions deploy stamp-create
+supabase functions deploy seal-reveal
+supabase functions deploy wallet-auth
+```
+
+Set required secrets:
+
+```bash
+supabase secrets set PLATFORM_WALLET_KEY=0xYOUR_PRIVATE_KEY
+supabase secrets set CONTRACT_ADDRESS=0xYOUR_CONTRACT_ADDRESS
+supabase secrets set CONTRACT_RPC_URL=https://your-rpc-endpoint
+supabase secrets set CONTRACT_CHAIN_ID=YOUR_CHAIN_ID
+supabase secrets set TURBO_API_KEY=YOUR_ARWEAVE_TURBO_KEY
+```
+
+---
+
+## Step 4 — Configure the Frontend
+
+Edit `js/config.js`:
+
+```js
+const TRUTHSTAMP_CONFIG = {
+  SUPABASE_URL:         'https://yourproject.supabase.co',
+  SUPABASE_ANON_KEY:    'your-anon-key',
+  CONTRACT_ADDRESS:     '0xYourContractAddress',
+  CONTRACT_NETWORK:     'megaeth',
+  CONTRACT_CHAIN_ID:    4326,
+  CONTRACT_RPC_URL:     'https://mainnet.megaeth.com/rpc',
+  CONTRACT_EXPLORER:    'https://mega.etherscan.io/',
+  POST_AUTH_REDIRECT:   'dashboard.html',
+};
+```
+
+---
+
+## Step 5 — Deploy the Frontend
+
+Push to GitHub and enable GitHub Pages on your fork:
+
+1. Fork `truthstamp-web`
+2. Go to Settings → Pages → Source: `main` branch
+3. Your instance is live at `https://yourusername.github.io/truthstamp-web`
+
+Or deploy to any static host (Vercel, Netlify, Cloudflare Pages).
+
+---
+
+## Step 6 — Fund Your Wallets
+
+Your platform wallet needs:
+- **MegaETH ETH** — for gas on every stamp transaction
+- **Arweave / Turbo credits** — for permanent content storage
+
+Keep a minimum balance to avoid failed stamps.
+
+---
+
+## Optional — Bitcoin Archiving
+
+Clone the Bitcoin archival layer:
+
+```bash
+git clone https://github.com/truthstamp-protocol/truthstamp-bitcoin
+```
+
+Follow the README in that repo. Requires a Bitcoin node or API access 
+and additional Supabase configuration.
+
+---
+
+## Optional — Run the Indexer
+
+The indexer keeps your DB in sync with on-chain events:
+
+```bash
+git clone https://github.com/truthstamp-protocol/truthstamp-indexer
+```
+
+Follow the README in that repo for setup and env configuration.
+
+---
+
+## Differences From the Hosted Version
+
+When self-hosting, you control everything:
+- Your own contract — your proof IDs start from 1
+- Your own Arweave wallet — you pay storage costs directly
+- Your own user accounts — no shared identity with truthstamp.io
+- Proofs from your instance are **not** visible on truthstamp.io
+
+If you want your stamps visible on the main explorer, use the hosted 
+platform instead.
+
+---
+
+## Support
+
+- Protocol questions: open an issue in `tsp-spec`
+- Contract issues: open an issue in `truthstamp-contracts`
+- Frontend issues: open an issue in `truthstamp-web`
